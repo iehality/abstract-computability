@@ -2,7 +2,6 @@ import data.option.basic
 import tactic
 
 universe variable u
-
 variables {α : Type u}
 
 class partial_magma (α : Type u) :=
@@ -11,10 +10,10 @@ infixl ` ⬝ ` := partial_magma.mul
 infix ` ↓= `:50 := λ x y, x = some y
 prefix `↓`:80 := some
 
-abbreviation defined  : option α →  bool := option.is_some
+abbreviation defined  : option α → bool := option.is_some
 
 def partial_magma.mmul [partial_magma α] : option α → option α → option α
-| ↓x ↓y := x ⬝ y
+| ↓x ↓y  := x ⬝ y
 | none _ := none
 | _ none := none
 instance pm_mul [c : partial_magma α] : has_mul (option α) := {mul := @partial_magma.mmul _ c}
@@ -40,25 +39,11 @@ notation `𝐬` := subst
 
 @[simp] lemma k_simp [pca α] (a : α) : ↓k * ↓a = ↓(𝐤 a) := by { unfold const, simp, refl }
 @[simp] lemma s_simp [pca α] (a b : α) : ↓s * ↓a * ↓b = ↓(𝐬 a b) := by { unfold subst, simp, refl }
+@[simp] lemma k_simp0 [pca α] (a b : α) : ↓(𝐤 a) * ↓b = ↓a := by { rw ← k_simp, exact k_constant _ _, }
+@[simp] lemma s_simp0 [pca α] (a b c : α) : ↓(𝐬 a b) * ↓c = (↓a * ↓c) * (↓b * ↓c) := by { rw ← s_simp, exact s_substitution _ _ _, }
 
-@[simp]
-lemma k_simp0 [pca α] (a b : α) : ↓(𝐤 a) * ↓b = ↓a :=
-begin
-  calc
-    ↓(𝐤 a) * ↓b = ↓k * ↓a * ↓b : by { simp, }
-    ...           = ↓a             : k_constant _ _
-end
-
-@[simp] 
-lemma s_simp0 [pca α] (a b c : α) : ↓(𝐬 a b) * ↓c = (↓a * ↓c) * (↓b * ↓c) :=
-begin
-  calc
-    ↓(𝐬 a b) * ↓c = ↓s * ↓a * ↓b * ↓c : by { simp, }
-    ...             = a ⬝ c * b ⬝ c           : s_substitution _ _ _
-end
 
 def i [pca α] : α := 𝐬 k k
-
 @[simp] lemma i_ident [pca α] (a : α) : ↓i * ↓a = ↓a := by { unfold i, simp, }
 
 inductive lambda (α : Type u) [pca α]
@@ -83,12 +68,8 @@ def expr [pca α] : lambda α → option α
 lemma lambda_defined [c : pca α] : ∀ (n : ℕ) (e : lambda α), defined (expr (Λ n, e) : option α)
 | n (var e) := begin
     cases (eq.decidable n e),
-    { have he : (Λ n, (var e) : @lambda _ c) = com k * var e, { simp [lam], intros, contradiction },
-      rw he,
-      exact ktot _ },
-    { have he : (Λ n, (var e) : @lambda _ c) = com i, { simp [lam], intros, contradiction },
-      rw he,
-      exact rfl, }
+    { simp[lam, expr, if_neg h], exact rfl, },
+    { simp[lam, expr, if_pos h], exact rfl, },
   end
 | n (com c) := ktot c
 | n (l * m) := begin
@@ -118,9 +99,9 @@ end
 lemma diagonal [pca α] (f x : α) : d ⬝ f * x = f ⬝ f * x :=
 begin
   calc
-    d ⬝ f * ↓x = ↓d * ↓f * ↓x                                        :rfl
-    ...         = expr (Λ 0, (Λ 1, (var 0 * var 0 * var 1))) * ↓f * ↓x : by { unfold d, simp, }
-    ...         = f ⬝ f * ↓x                                            : by { simp [lam, expr], refl, }
+    d ⬝ f * ↓x = ↓d * ↓f * ↓x                                         :rfl
+    ...        = expr (Λ 0, (Λ 1, (var 0 * var 0 * var 1))) * ↓f * ↓x : by { unfold d, simp, }
+    ...        = f ⬝ f * ↓x                                           : by { simp [lam, expr], refl, }
 end
 
 def v [pca α] : α := 0 ↦ Λ 1, (var 0 * (com d * var 1))
@@ -130,27 +111,21 @@ theorem recursion [pca α] (f : α) : n ⬝ f ≃ f * (n ⬝ f) :=
 begin
   intros x,
   let vf := (0 ↦ com f * (com d * var 0)),  
-  have hv : ↓v * ↓f ↓= vf, { unfold v, simp [lam, expr], },
-  have nf_dvf : ↓n * ↓f = ↓d * ↓vf,
-  { calc
-      ↓n * ↓f = expr (Λ 0, (com d * (com v * var 0))) * ↓f : by { unfold n, simp, }
-      ...       = ↓d * ↓vf                                  : by { rw ← hv, simp [lam, expr], } },
+  have hv : ↓v * ↓f = ↓vf, { unfold v, simp [lam, expr], },
+  have nf_dvf : ↓n * ↓f = ↓d * ↓vf,  { unfold n, unfold v, simp [lam, expr], },
   calc
-    n ⬝ f * x = ↓n * ↓f * x          : rfl
-    ...       = ↓d * ↓vf * x         : by { rw nf_dvf, }
-    ...       = ↓vf * ↓vf * x        : diagonal vf x
+    n ⬝ f * x = ↓n * ↓f * x         : rfl
+    ...       = ↓d * ↓vf * x        : by { rw nf_dvf, }
+    ...       = ↓vf * ↓vf * x       : diagonal vf x
     ...       = ↓f * (↓d * ↓vf) * x : by { simp [lam, expr], }
     ...       = ↓f * (↓n * ↓f) * x  : by { rw nf_dvf, }
 end
 
-theorem ntot [pca α] (f : α) : defined (n ⬝ f) :=
+theorem ntot [pca α] (f : α) : defined (↓n * ↓f) :=
 begin
   let vf := (0 ↦ com f * (com d * var 0)),  
   have hv : ↓v * ↓f = ↓vf, { unfold v, simp [lam, expr], },
-  have nf_dvf : n ⬝ f = ↓d * ↓vf,
-  { calc
-      ↓n * ↓f = expr (Λ 0, (com d * (com v * var 0))) * ↓f : by { unfold n, simp, }
-      ...       = ↓d * ↓vf                                  : by { rw ← hv, simp [lam, expr], } },
+  have nf_dvf : ↓n * ↓f = ↓d * ↓vf,  { unfold n, unfold v, simp [lam, expr], },
   rw nf_dvf,
   exact (dtot _)
 end
@@ -173,9 +148,9 @@ begin
   calc
     ↓pair * ↓a * ↓b = expr (Λ 0, (Λ 1, (Λ 2, (var 2 * var 0 * var 1)))) * ↓a * ↓b
       : by { unfold pair, simp, }
-    ...                = expr (Λ 0, (var 0 * com a * com b))
+    ...             = expr (Λ 0, (var 0 * com a * com b))
       : by {simp [lam, expr, if_neg (show 2 ≠ 0, from dec_trivial), if_neg (show 2 ≠ 1, from dec_trivial)], }
-    ...                = ↓⟪a, b⟫
+    ...             = ↓⟪a, b⟫
       : by { simp, },
 end
 
@@ -184,7 +159,40 @@ lemma pair_pi1 [pca α] (a b : α) : ↓π₁ * ↓⟪a, b⟫ = ↓b := by { unf
 
 end calculation
 
+def K [pca α] : set α := {x : α | defined (↓x * ↓x)}
+def re_set [pca α] (A : set α) : Prop := ∃ e : α, A = {x | defined (↓e * ↓x)}
 
-def K [pca α] : set α := {x | defined (x ⬝ x)}
-def re_set [pca α] (A : set α) : Prop := ∃ e : α, A = {x | defined (e ⬝ x)}
+lemma neg_p_iff_negp (P : Prop) : ¬(P ↔ ¬P) := 
+begin
+  rintros ⟨h₀, h₁⟩,
+  have h₂ : ¬ P := λ p, h₀ p p,
+  exact h₂ (h₁ h₂),
+end
+
+lemma dfsg (A B : set nat) : (∀ x, x ∈ A ↔ x ∈ B) → A = B := by {exact set.ext}
+
+lemma K_re [pca α] : re_set (K : set α) :=
+begin
+  use (0 ↦ var 0 * var 0),
+  have h : ∀ x : α, expr (Λ 0, (var 0 * var 0)) * ↓x = ↓x * ↓x, { intros x, simp [lam, expr], },
+  apply set.ext,
+  intros x,
+  split,
+  { assume xK, simp, rw h x, exact xK, },
+  { unfold K, simp, assume xh, rw ← h x, exact xh, },
+end
+
+lemma compl_K_nre [pca α] : ¬ re_set (Kᶜ : set α) :=
+begin
+  rintro ⟨e, h⟩,
+  apply neg_p_iff_negp (e ∈ (K : set α)),
+  { split,
+    { assume eK : e ∈ K,
+      show e ∈ (Kᶜ : set α), { rw h, simp, exact eK, }, },
+    { assume nKc : e ∉ K,
+      have eKc : e ∈ (Kᶜ : set α) := nKc,
+      show e ∈ K , { unfold K, simp, rw h at eKc, exact eKc, }, }, },
+end
+
+
 end pca
