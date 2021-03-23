@@ -10,13 +10,35 @@ infixl ` ⬝ ` := partial_magma.mul
 infix ` ↓= `:50 := λ x y, x = some y
 prefix `↓`:80 := some
 
-abbreviation defined  : option α → bool := option.is_some
+abbreviation defined : option α → bool := option.is_some
 
 def partial_magma.mmul [partial_magma α] : option α → option α → option α
-| ↓x ↓y  := x ⬝ y
-| none _ := none
-| _ none := none
-instance pm_mul [c : partial_magma α] : has_mul (option α) := {mul := @partial_magma.mmul _ c}
+| ↓x ↓y := x ⬝ y
+| _ _   := none
+instance pm_mul [partial_magma α] : has_mul (option α) := {mul := @partial_magma.mmul α _}
+
+@[simp] lemma partial_magma.none_l [partial_magma α] (p : option α) : none * p = none := option.cases_on p rfl (λ a, rfl)
+@[simp] lemma partial_magma.none_r [partial_magma α] (p : option α) : p * none = none := option.cases_on p rfl (λ a, rfl)
+
+lemma defined_l [partial_magma α] (p q : option α) : defined (p * q) → defined p :=
+begin
+  contrapose,
+  assume (h0 : ¬ defined p),
+  have e : p = none, from option.not_is_some_iff_eq_none.mp h0, 
+  rw e,
+  simp,
+end
+
+lemma defined_r [partial_magma α] (p q : option α) : defined (p * q) → defined q :=
+begin
+  contrapose,
+  assume (h0 : ¬ defined q),
+  have e : q = none, from option.not_is_some_iff_eq_none.mp h0, 
+  rw e,
+  simp,
+end
+
+abbreviation tot [partial_magma α] (a : α) : Prop := ∀ x : α, defined (a ⬝ x) = tt
 
 /- Partial Combinatory Algebra -/
 class pca (α : Type u) extends partial_magma α :=
@@ -32,8 +54,8 @@ infix ` ≃ `:50 := pca.equiv
 
 namespace pca
 
-def const [pca α] (x : α) := option.get (ktot x)
-def subst [pca α] (x y : α) := option.get (stot x y)
+def const [pca α] (x : α) : α := option.get (ktot x)
+def subst [pca α] (x y : α) : α := option.get (stot x y)
 notation `𝐤` := const
 notation `𝐬` := subst
 
@@ -42,9 +64,13 @@ notation `𝐬` := subst
 @[simp] lemma k_simp0 [pca α] (a b : α) : ↓(𝐤 a) * ↓b = ↓a := by { rw ← k_simp, exact k_constant _ _, }
 @[simp] lemma s_simp0 [pca α] (a b c : α) : ↓(𝐬 a b) * ↓c = (↓a * ↓c) * (↓b * ↓c) := by { rw ← s_simp, exact s_substitution _ _ _, }
 
-
 def i [pca α] : α := 𝐬 k k
 @[simp] lemma i_ident [pca α] (a : α) : ↓i * ↓a = ↓a := by { unfold i, simp, }
+
+lemma stot0 [pca α] (a : α) : defined (↓s * ↓a) := defined_l (↓s * ↓a) a (stot _ _)
+
+def subst0 [pca α] (x : α) : α := option.get (stot0 x)
+notation `𝐬₀` := subst0
 
 inductive lambda (α : Type u) [pca α]
 | var : ℕ → lambda
@@ -99,9 +125,8 @@ end
 lemma diagonal [pca α] (f x : α) : d ⬝ f * x = f ⬝ f * x :=
 begin
   calc
-    d ⬝ f * ↓x = ↓d * ↓f * ↓x                                         :rfl
-    ...        = expr (Λ 0, (Λ 1, (var 0 * var 0 * var 1))) * ↓f * ↓x : by { unfold d, simp, }
-    ...        = f ⬝ f * ↓x                                           : by { simp [lam, expr], refl, }
+    d ⬝ f * ↓x = ↓d * ↓f * ↓x : rfl
+    ...        = f ⬝ f * ↓x   : by { unfold d, simp [lam, expr], refl, }
 end
 
 def v [pca α] : α := 0 ↦ Λ 1, (var 0 * (com d * var 1))
@@ -159,8 +184,37 @@ lemma pair_pi1 [pca α] (a b : α) : ↓π₁ * ↓⟪a, b⟫ = ↓b := by { unf
 
 end calculation
 
+inductive prec [pca α] : set α
+| k : prec k
+| s : prec s
+| mul {a b c} : ↓a * ↓b = ↓c → prec a → prec b → prec c 
+notation `ℰ` := prec
+
+def recursive [pca α] : set α := {x | prec x ∧ tot x}
+notation `ℛ` := recursive
+#check ℛ
+
+lemma prec.const [pca α] {a : α} : a ∈ (ℰ : set α) → 𝐤 a ∈ (ℰ : set α) :=
+begin
+  assume h : a ∈ ℰ,
+  have l0 : ↓k * ↓a = ↓𝐤 a, { simp, },
+  show 𝐤 a ∈ ℰ, from prec.mul l0 prec.k h,
+end
+
+lemma prec.subst [pca α] {a b : α}
+: a ∈ (ℰ : set α) → b ∈ (ℰ : set α) → 𝐬 a b ∈ (ℰ : set α) :=
+begin
+  assume (ha : a ∈ ℰ) (hb : b ∈ ℰ),
+  have l0 : ↓s * ↓a = ↓𝐬₀ a, { unfold subst0, simp, },
+  have l1 : 𝐬₀ a ∈ (ℰ : set α), from prec.mul l0 prec.s ha,
+  have l2 : ↓𝐬₀ a * ↓b = ↓𝐬 a b, { unfold subst0, simp, },
+  show 𝐬 a b ∈ ℰ, from prec.mul l2 l1 hb,
+end
+
+lemma prec.i [pca α] : i ∈ (ℰ : set α) := prec.subst prec.k prec.k
+
 def K [pca α] : set α := {x : α | defined (↓x * ↓x)}
-def re_set [pca α] (A : set α) : Prop := ∃ e : α, A = {x | defined (↓e * ↓x)}
+def re_set [pca α] (A : set α) : Prop := ∃ e : α, e ∈ (ℰ : set α) ∧ A = {x | defined (↓e * ↓x)}
 
 lemma neg_p_iff_negp (P : Prop) : ¬(P ↔ ¬P) := 
 begin
@@ -169,12 +223,13 @@ begin
   exact h₂ (h₁ h₂),
 end
 
-lemma dfsg (A B : set nat) : (∀ x, x ∈ A ↔ x ∈ B) → A = B := by {exact set.ext}
-
 lemma K_re [pca α] : re_set (K : set α) :=
 begin
   use (0 ↦ var 0 * var 0),
   have h : ∀ x : α, expr (Λ 0, (var 0 * var 0)) * ↓x = ↓x * ↓x, { intros x, simp [lam, expr], },
+  split,
+  { simp [lam, expr],
+    show 𝐬 i i ∈ ℰ, from prec.subst prec.i prec.i, },
   apply set.ext,
   intros x,
   split,
@@ -186,12 +241,12 @@ lemma compl_K_nre [pca α] : ¬ re_set (Kᶜ : set α) :=
 begin
   rintro ⟨e, h⟩,
   apply neg_p_iff_negp (e ∈ (K : set α)),
-  { split,
-    { assume eK : e ∈ K,
-      show e ∈ (Kᶜ : set α), { rw h, simp, exact eK, }, },
-    { assume nKc : e ∉ K,
-      have eKc : e ∈ (Kᶜ : set α) := nKc,
-      show e ∈ K , { unfold K, simp, rw h at eKc, exact eKc, }, }, },
+  split,
+  { assume eK : e ∈ K,
+    show e ∈ (Kᶜ : set α), { rw h.2, simp, exact eK, }, },
+  { assume nKc : e ∉ K,
+    have eKc : e ∈ (Kᶜ : set α) := nKc,
+    show e ∈ K, { unfold K, simp, rw h.2 at eKc, exact eKc, }, },
 end
 
 
