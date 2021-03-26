@@ -7,8 +7,6 @@ universe variable u
 variables {α : Type u}
 variables [pca α]
 
-namespace set
-
 inductive prec (A : set α) : set α
 | rel {a} : a ∈ A → prec a
 | k : prec k
@@ -20,6 +18,8 @@ notation `ℰ₀` := prec ∅
 def recursive (A : set α) : set α := {x | x ∈ prec A ∧ tot x}
 notation `ℛ` := recursive
 notation `ℛ₀` := recursive ∅
+
+@[simp] lemma pr_in_univ (a : α) : a ∈ ℰ (@set.univ α) := prec.rel (by simp)
 
 lemma pr_subset {A B : set α} {x : α} (hx : x ∈ ℰ A) (h : A ⊆ B) : x ∈ ℰ B :=
 begin
@@ -60,76 +60,113 @@ inductive lambdar (A : set α)
 | var : ℕ → lambdar
 | com {a : α} : a ∈ ℰ A → lambdar
 | app : lambdar → lambdar → lambdar
-prefix `#₀`:max := lambdar.var
-prefix `&₀`:max := lambdar.com
-notation `k₀` := &₀prec.k
-notation `s₀` := &₀prec.s
-notation `i₀` := &₀prec.i
+prefix `#`:max := lambdar.var
+prefix `&`:max := lambdar.com
+
 instance lambdar_mul {A : set α} : has_mul (lambdar A) := ⟨lambdar.app⟩
 
-def lamr {A : set α} (n : ℕ) : lambdar A → lambdar A
-| #₀m     := if n = m then i₀ else k₀ * #₀m
-| &₀h     := k₀ * lambdar.com h
-| (l * m) := s₀ * (lamr l) * (lamr m)
-notation `Λ₀`x`,` := lamr x 
+def lam {A : set α} (n : ℕ) : lambdar A → lambdar A
+| #m     := if n = m then &prec.i else &prec.k * #m
+| &h     := &prec.k * lambdar.com h
+| (l * m) := &prec.s * (lam l) * (lam m)
+notation `Λ`x`,` := lam x 
 
-def exprr (A : set α): lambdar A → option α
-| #₀x := ↓k
+def expr (A : set α): lambdar A → option α
+| #x := ↓k
 | (@lambdar.com _ _ _ e _) := ↓e
-| (l * m) := (exprr l) * (exprr m)
+| (l * m) := (expr l) * (expr m)
 
-lemma lambdar_defined {A : set α} (n : ℕ) : ∀ (e : lambdar A), defined (exprr A (Λ₀ n, e))
-| #₀e := begin
+lemma lambdar_defined {A : set α} (n : ℕ) : ∀ (e : lambdar A), defined (expr A (Λ n, e))
+| #e := begin
     cases (eq.decidable n e),
-    { simp[lamr, exprr, if_neg h], exact rfl, },
-    { simp[lamr, expr, if_pos h], exact rfl, },
+    { simp[lam, expr, if_neg h], exact rfl, },
+    { simp[lam, expr, if_pos h], exact rfl, },
   end
 | (@lambdar.com _ _ _ e _) := ktot e
 | (l * m) := begin
-    simp [lamr, exprr], 
+    simp [lam, expr], 
     let a := option.get (lambdar_defined l),
     let b := option.get (lambdar_defined m),
-    have ha : exprr A (Λ₀ n, l) = ↓a, { simp },
-    have hb : exprr A (Λ₀ n, m) = ↓b, { simp },
+    have ha : expr A (Λ n, l) = ↓a, { simp },
+    have hb : expr A (Λ n, m) = ↓b, { simp },
     rw [ha, hb],
     exact stot' a b
   end
 
-notation n` -[`A`]→ ` l := option.get (@lambdar_defined _ _ A n l)
+notation n` →[`A`] `l := option.get (@lambdar_defined _ _ A n l)
+notation n` →∅ `l := n →[∅] l
+notation n` →u `l := n →[set.univ] l
+
 
 lemma lambdar_pr {A : set α} :
-  ∀ {e : lambdar A} (h : defined (exprr A e) = tt), option.get h ∈ (ℰ A : set α)
-| #₀_ _ := prec.k
-| &₀p _ := p
+  ∀ {e : lambdar A} (h : defined (expr A e) = tt), option.get h ∈ ℰ A
+| #_ _ := prec.k
+| &p _ := p
 | (l * m) h := begin
-    have ld : defined (exprr A l) = tt, from defined_l h,
-    have md : defined (exprr A m) = tt, from defined_r h,
+    have ld : defined (expr A l) = tt, from defined_l h,
+    have md : defined (expr A m) = tt, from defined_r h,
     have lpr : option.get ld ∈ ℰ A, from lambdar_pr ld,
     have mpr : option.get md ∈ ℰ A, from lambdar_pr md,
-    have e : ↓option.get ld * ↓option.get md = ↓option.get h, { simp [exprr], },
+    have e : ↓option.get ld * ↓option.get md = ↓option.get h, { simp [expr], },
     show option.get h ∈ ℰ A, from prec.mul e lpr mpr,
   end
 
-@[simp] lemma lambda_pr0 {A : set α} (n : ℕ) (e : lambdar A) : (n -[A]→ e) ∈ (ℰ A : set α) := lambdar_pr _
+@[simp] lemma lambda_pr0 {A : set α} (n : ℕ) (e : lambdar A) : (n →[A] e) ∈ ℰ A := lambdar_pr _
 
-namespace recursion_pr
+namespace recursion
 
-def d : α := 0 -[∅]→ (Λ₀ 1, (#₀0 * #₀0 * #₀1))
+def d : α := 0 →∅ (Λ 1, (#0 * #0 * #1))
 def dpr : d ∈ (ℰ₀ : set α) := lambda_pr0 _ _
 
-def v: α := 0 -[∅]→ (Λ₀ 1, (#₀0 * (&₀dpr * #₀1)))
+def v: α := 0 →∅ (Λ 1, (#0 * (&dpr * #1)))
 def vpr : v ∈ (ℰ₀ : set α) := lambda_pr0 _ _
 
-def n : α := 0 -[∅]→ (&₀dpr * (&₀vpr * #₀0))
+def n : α := 0 →∅ (&dpr * (&vpr * #0))
 def npr : n ∈ (ℰ₀ : set α) := lambda_pr0 _ _
 
-lemma fixpoint_eq_n : @fixpoint α _ = n :=
-by { simp [fixpoint,recursion.n,n,recursion.d,recursion.v,d,v], refl, }
+theorem recursion (f : α) : n ⬝ f ≃ ↓f * (n ⬝ f) :=
+begin
+  intros x,
+  have diagonal : ∀ g, ↓d * ↓g * ↓x = ↓g * ↓g * ↓x, { unfold d, simp [lam, expr], },
+  let vf := (0 →u &(pr_in_univ f) * (&(pr_in_univ d) * #0)),  
+  have hv : ↓v * ↓f = ↓vf, { unfold v, simp [lam, expr], },
+  have nf_dvf : ↓n * ↓f = ↓d * ↓vf,  { unfold n, unfold v, simp [lam, expr], },
+  calc
+    n ⬝ f * ↓x = ↓n * ↓f * ↓x         : rfl
+    ...        = ↓d * ↓vf * ↓x        : by { rw nf_dvf, }
+    ...        = ↓vf * ↓vf * ↓x       : diagonal vf
+    ...        = ↓f * (↓d * ↓vf) * ↓x : by { simp [lam, expr], }
+    ...        = ↓f * (↓n * ↓f) * ↓x  : by { rw nf_dvf, }
+end
 
-lemma fixpoint_pr : fixpoint ∈ (ℰ₀ : set α) := by { rw fixpoint_eq_n, exact npr, }
+theorem ntot : tot (n : α) :=
+begin
+  intros f,
+  let vf := (0 →u &(pr_in_univ f) * (&(pr_in_univ d) * #0)),  
+  have hv : ↓v * ↓f = ↓vf, { unfold v, simp [lam, expr], },
+  have nf_dvf : ↓n * ↓f = ↓d * ↓vf,  { unfold n, unfold v, simp [lam, expr], },
+  have dtot : tot (d : α), { intros x, simp [d, lam, expr], refl, },
+  rw nf_dvf,
+  exact (dtot vf),
+end
+
+end recursion
+
+def fixpoint : α := recursion.n
+def recursion  (f x : α) : ↓fixpoint * ↓f * ↓x = f * (↓fixpoint * ↓f) * ↓x := recursion.recursion f x
+def fixpoint_of (f : α) : α := option.get (recursion.ntot f)
+
+lemma fixpoint_pr : fixpoint ∈ (ℰ₀ : set α) := recursion.npr
 lemma fixpoint_re : fixpoint ∈ (ℛ₀ : set α) := ⟨fixpoint_pr, recursion.ntot⟩
 
-end recursion_pr
+namespace nontotal
+
+variables [nontotal α]
+
+def divergent_u : α := 0 →u &(pr_in_univ nontotal.p) * &(pr_in_univ nontotal.q)
+
+
+end nontotal
 
 def reducible (A : set α) (f g : α) : Prop := ∃ e : α, e ∈ ℰ A ∧ ↓e * ↓g = ↓f 
 def T_reducible (f g : α) : Prop := reducible ∅ f g
@@ -143,15 +180,15 @@ by { use i, split, exact prec.i, simp, }
 begin
   rcases hab with ⟨e_ab, ⟨e_ab_pr, heab⟩⟩,
   rcases hbc with ⟨e_bc, ⟨e_bc_pr, hebc⟩⟩,
-  let e_ac := (0 -[∅]→ &₀e_ab_pr * (&₀e_bc_pr * #₀0)),
+  let e_ac := (0 →∅ &e_ab_pr * (&e_bc_pr * #0)),
   use e_ac,
   split,
   { show e_ac ∈ ℰ₀, simp, },
-  { show ↓e_ac * ↓c = ↓a, simp [lamr, exprr, heab, hebc], },
+  { show ↓e_ac * ↓c = ↓a, simp [lam, expr, heab, hebc], },
 end
 
 namespace jump
-
+/-
 def jump_pred (A : set α) (j : α) : Prop := 
 (∀ x, x ∈ ℰ A → ↓j * ↓x = ↓(if defined (↓x * ↓x) then combinator.top else combinator.bot))
 theorem jhjhj (A : set α) (j : α) (hj : jump_pred A j) : j ∉ ℰ A :=
@@ -159,47 +196,7 @@ begin
   assume h : j ∈ ℰ A,
   let 
 end 
-
+-/
 end jump
 
-def Kl : set α := {x : α | defined (↓x * ↓x)}
-def K (A : set α) := {x : α | x ∈ A ∧ defined (↓x * ↓x)}
-def representable (A : set α) : set (set α) := {B | ∃ e, e ∈ A ∧ B = {x | defined (↓e * ↓x)}}
-notation A` is_representable_in `B := A ∈ representable B
-def re_set (A : set α) : Prop := ∃ e : α, e ∈ (ℰ₀ : set α) ∧ A = {x | defined (↓e * ↓x)}
-
-lemma neg_p_iff_negp (P : Prop) : ¬(P ↔ ¬P) := 
-begin
-  rintros ⟨h₀, h₁⟩,
-  have h₂ : ¬ P := λ p, h₀ p p,
-  exact h₂ (h₁ h₂),
-end
-
-lemma K_re : Kl is_representable_in (ℰ₀ : set α) :=
-begin
-  use (0 ↦ #0 * #0),
-  have h : ∀ x : α, expr (Λ 0, (#0 * #0)) * ↓x = ↓x * ↓x, { intros x, simp [lam, expr], },
-  split,
-  { simp [lam, expr],
-    show 𝐬 i i ∈ ℰ₀, from prec.subst _ prec.i prec.i, },
-  apply set.ext,
-  intros x,
-  split,
-  { assume xK, simp, rw h x, exact xK, },
-  { unfold Kl, simp, assume xh, rw ← h x, exact xh, },
-end
-
-lemma compl_K_nre : ¬ re_set (Klᶜ : set α) :=
-begin
-  rintro ⟨e, h⟩,
-  apply neg_p_iff_negp (e ∈ (Kl : set α)),
-  split,
-  { assume eK : e ∈ Kl,
-    show e ∈ (Klᶜ : set α), { rw h.2, simp, exact eK, }, },
-  { assume nKc : e ∉ Kl,
-    have eKc : e ∈ (Klᶜ : set α) := nKc,
-    show e ∈ Kl, { unfold Kl, simp, rw h.2 at eKc, exact eKc, }, },
-end
-
-end set
 end pca
