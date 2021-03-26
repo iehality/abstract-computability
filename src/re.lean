@@ -90,7 +90,7 @@ lemma lambdar_defined {A : set α} (n : ℕ) : ∀ (e : lambdar A), defined (exp
     have ha : expr A (Λ n, l) = ↓a, { simp },
     have hb : expr A (Λ n, m) = ↓b, { simp },
     rw [ha, hb],
-    exact stot' a b
+    exact s_defined a b
   end
 
 notation n` →[`A`] `l := option.get (@lambdar_defined _ _ A n l)

@@ -49,12 +49,6 @@ infix ` ≃ `:50 := pmagma.equiv
 @[trans] lemma pmagma.trans [pmagma α] (a b c : option α) (eab : a ≃ b) (ebc : b ≃ c) : a ≃ c :=
 by { intros x, rw (eab x), exact ebc x, }
 
-class nontotal (α : Type u) [pmagma α] :=
-(p q : α)
-(undefined : p ⬝ q = none)
-
-@[simp] lemma nontototal_simp [pmagma α] [nontotal α] : (↓nontotal.p * ↓nontotal.q : option α) = none := nontotal.undefined
-
 /- Partial Combinatory Algebra -/
 class pca (α : Type u) extends pmagma α :=
 (k : α)
@@ -88,5 +82,33 @@ lemma itot : tot (i : α) := by { intros x, simp, refl, }
 
 def subst' (x : α) : α := option.get (stot x)
 notation `𝐬'` := subst'
+
+class nontotal (α : Type u) [pmagma α] :=
+(p q : α)
+(pq_undefined : p ⬝ q = none)
+
+namespace nontotal
+
+@[simp] lemma nontototal_simp [pmagma α] [nontotal α] : (↓p * ↓q : option α) = none := pq_undefined
+
+def divergent [nontotal α] : α := 𝐬 (𝐤 nontotal.p) (𝐤 nontotal.q)
+theorem divergent_udefined [nontotal α] (a : α) : udefined (↓divergent * ↓a) = tt := by { simp[divergent], refl, }
+
+theorem k_ne_s [nontotal α] : (k : α) ≠ s :=
+begin
+  assume e : k = s,
+  have e0 : ↓(i : α) = ↓divergent,
+  { calc
+      ↓(i : α) = ↓k * (↓k * ↓i) * (↓k * ↓divergent) * ↓divergent : by { simp, }
+      ...      = ↓s * (↓k * ↓i) * (↓k * ↓divergent) * ↓divergent : by { rw e, }
+      ...      = ↓divergent : by { simp, } },
+  have c  : defined (↓(i : α) * ↓k) = tt, { simp, refl, },
+  have c0 : defined (↓(i : α) * ↓k) = ff, { rw e0, simp[divergent], },
+  show false, from bool_iff_false.mpr c0 c,
+end
+
+instance [nontotal α] : nontrivial α := ⟨⟨k, s, k_ne_s⟩⟩
+
+end nontotal
 
 end pca
