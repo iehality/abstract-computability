@@ -39,6 +39,15 @@ end
 
 def tot [partial_magma α] (a : α) : Prop := ∀ x : α, defined (↓a * ↓x) = tt
 
+def partial_magma.equiv [partial_magma α] (a b : option α) : Prop := ∀ x : α, a * ↓x = b * ↓x
+infix ` ≃ `:50 := partial_magma.equiv
+
+@[refl] lemma partial_magma.refl [partial_magma α] (a : option α) : a ≃ a := λ x, rfl
+
+@[trans] lemma partial_magma.trans [partial_magma α] (a b c : option α) (eab : a ≃ b) (ebc : b ≃ c) : a ≃ c :=
+by { intros x, rw (eab x), exact ebc x, }
+
+
 /- Partial Combinatory Algebra -/
 class pca (α : Type u) extends partial_magma α :=
 (k : α)
@@ -48,50 +57,50 @@ class pca (α : Type u) extends partial_magma α :=
 (stot' : ∀ x y : α, defined (s ⬝ x * y))
 (s_substitution : ∀ x y z : α, s ⬝ x * y * z = (x ⬝ z) * (y ⬝ z))
 
-def pca.equiv [partial_magma α] (a b : option α) : Prop := ∀ x : α, a * ↓x = b * ↓x
-infix ` ≃ `:50 := pca.equiv 
 
 namespace pca
 
-def const [pca α] (x : α) : α := option.get (ktot x)
-def subst [pca α] (x y : α) : α := option.get (stot' x y)
+variables [pca α]
+
+def const (x : α) : α := option.get (ktot x)
+def subst (x y : α) : α := option.get (stot' x y)
 notation `𝐤` := const
 notation `𝐬` := subst
 
-@[simp] lemma k_simp [pca α] (a : α) : ↓k * ↓a = ↓(𝐤 a) := by { unfold const, simp, refl }
-@[simp] lemma s_simp [pca α] (a b : α) : ↓s * ↓a * ↓b = ↓(𝐬 a b) := by { unfold subst, simp, refl }
-@[simp] lemma k_simp0 [pca α] (a b : α) : ↓(𝐤 a) * ↓b = ↓a := by { rw ← k_simp, exact k_constant _ _, }
-@[simp] lemma s_simp0 [pca α] (a b c : α) : ↓(𝐬 a b) * ↓c = (↓a * ↓c) * (↓b * ↓c) := by { rw ← s_simp, exact s_substitution _ _ _, }
+@[simp] lemma k_simp (a : α) : ↓k * ↓a = ↓(𝐤 a) := by { unfold const, simp, refl }
+@[simp] lemma s_simp (a b : α) : ↓s * ↓a * ↓b = ↓(𝐬 a b) := by { unfold subst, simp, refl }
+@[simp] lemma k_simp0 (a b : α) : ↓(𝐤 a) * ↓b = ↓a := by { rw ← k_simp, exact k_constant _ _, }
+@[simp] lemma s_simp0 (a b c : α) : ↓(𝐬 a b) * ↓c = (↓a * ↓c) * (↓b * ↓c) := by { rw ← s_simp, exact s_substitution _ _ _, }
 
-def i [pca α] : α := 𝐬 k k
-@[simp] lemma i_ident [pca α] (a : α) : ↓i * ↓a = ↓a := by { unfold i, simp, }
-lemma itot [pca α] : tot (i : α) := by { intros x, simp, refl, }
+def i : α := 𝐬 k k
+@[simp] lemma i_ident (a : α) : ↓i * ↓a = ↓a := by { unfold i, simp, }
+lemma itot : tot (i : α) := by { intros x, simp, refl, }
 
-lemma stot [pca α] : tot (s : α) := λ a, defined_l (stot' a a)
+lemma stot : tot (s : α) := λ a, defined_l (stot' a a)
 
-def subst' [pca α] (x : α) : α := option.get (stot x)
+def subst' (x : α) : α := option.get (stot x)
 notation `𝐬'` := subst'
 
-inductive lambda (α : Type u) [pca α]
+inductive lambda (α : Type u)
 | var : ℕ → lambda
 | com : α → lambda
 | app : lambda → lambda → lambda
 prefix `#` := lambda.var
 prefix `&`:max := lambda.com
-instance lambda_mul (α : Type u) [pca α] : has_mul (lambda α) := ⟨lambda.app⟩
+instance lambda_mul (α : Type u) : has_mul (lambda α) := ⟨lambda.app⟩
 
-def lam [pca α] (n : ℕ) :lambda α → lambda α
+def lam (n : ℕ) :lambda α → lambda α
 | #m := if n = m then &i else &k * #m
 | &c := &k * &c
 | (l * k) := &s * (lam l) * (lam k)
 notation `Λ`x`,` := lam x 
 
-def expr [pca α] : lambda α → option α
+def expr : lambda α → option α
 | #x := ↓k
 | &c := ↓c
 | (l * k) := (expr l) * (expr k)
 
-lemma lambda_defined [c : pca α] (n : ℕ) : ∀ (e : lambda α), defined (expr (Λ n, e) : option α)
+lemma lambda_defined (n : ℕ) : ∀ (e : lambda α), defined (expr (Λ n, e) : option α)
 | #e := begin
     cases (eq.decidable n e),
     { simp[lam, expr, if_neg h], exact rfl, },
@@ -112,23 +121,23 @@ notation n` ↦ `l := option.get (lambda_defined n l)
 
 namespace recursion
 
-def d [pca α] : α := 0 ↦ Λ 1, (#0 * #0 * #1)
-def dd [pca α] : lambda α := Λ 0, (Λ 1, (#0 * #0 * #1))
+def d : α := 0 ↦ Λ 1, (#0 * #0 * #1)
+def dd : lambda α := Λ 0, (Λ 1, (#0 * #0 * #1))
 
-lemma dtot [pca α] (f : α) : defined (d ⬝ f) :=
+lemma dtot (f : α) : defined (d ⬝ f) :=
 by { change (d ⬝ f) with (↓d * ↓f), unfold d, simp [lam, expr], exact rfl, }
 
-lemma diagonal [pca α] (f x : α) : d ⬝ f * x = f ⬝ f * x :=
+lemma diagonal (f x : α) : d ⬝ f * x = f ⬝ f * x :=
 begin
   calc
     d ⬝ f * ↓x = ↓d * ↓f * ↓x : rfl
     ...        = f ⬝ f * ↓x   : by { unfold d, simp [lam, expr], refl, }
 end
 
-def v [pca α] : α := 0 ↦ Λ 1, (#0 * (&d * #1))
-def n [pca α] : α := 0 ↦ &d * (&v * #0)
+def v : α := 0 ↦ Λ 1, (#0 * (&d * #1))
+def n : α := 0 ↦ &d * (&v * #0)
 
-theorem recursion [pca α] (f : α) : n ⬝ f ≃ f * (n ⬝ f) :=
+theorem recursion (f : α) : n ⬝ f ≃ f * (n ⬝ f) :=
 begin
   intros x,
   let vf := (0 ↦ &f * (&d * #0)),  
@@ -142,7 +151,7 @@ begin
     ...       = ↓f * (↓n * ↓f) * x  : by { rw nf_dvf, }
 end
 
-theorem ntot [pca α] (f : α) : defined (↓n * ↓f) :=
+theorem ntot (f : α) : defined (↓n * ↓f) :=
 begin
   let vf := (0 ↦ &f * (&d * #0)),  
   have hv : ↓v * ↓f = ↓vf, { unfold v, simp [lam, expr], },
@@ -153,8 +162,8 @@ end
 
 end recursion
 
-def fixpoint [pca α] : α := recursion.n
-def recursion  [pca α] (f x : α) : ↓fixpoint * ↓f * ↓x = f * (↓fixpoint * ↓f) * ↓x := recursion.recursion f x
-def fixpoint_of [pca α] (f : α) : α := option.get (recursion.ntot f)
+def fixpoint : α := recursion.n
+def recursion  (f x : α) : ↓fixpoint * ↓f * ↓x = f * (↓fixpoint * ↓f) * ↓x := recursion.recursion f x
+def fixpoint_of (f : α) : α := option.get (recursion.ntot f)
 
 end pca
