@@ -23,10 +23,14 @@ notation `ℛ₀` := recursive ∅
 
 lemma pr_subset {A B : set α} {x : α} (hx : x ∈ ℰ A) (h : A ⊆ B) : x ∈ ℰ B :=
 begin
-  induction hx with a ha a b c e ha hb iha ihb,
+  induction hx,
+  case prec.rel : a ha
   { exact prec.rel (h ha),},
+  case prec.k :
   { exact prec.k, },
+  case prec.s :
   { exact prec.s, },
+  case prec.mul : _ _ _ e _ _ iha ihb
   { exact prec.mul e iha ihb, },
 end
 
@@ -56,62 +60,62 @@ end
 lemma prec.i {A : set α} : i ∈ ℰ A := prec.subst A prec.k prec.k
 lemma recursive.i (A : set α) : i ∈ (ℛ A : set α) := ⟨prec.i, itot⟩
 
-inductive lambdar (A : set α) 
-| var : ℕ → lambdar
-| com {a : α} : a ∈ ℰ A → lambdar
-| app : lambdar → lambdar → lambdar
-prefix `#`:max := lambdar.var
-prefix `&`:max := lambdar.com
+inductive lambda (A : set α) 
+| var : ℕ → lambda
+| com {a : α} : a ∈ ℰ A → lambda
+| app : lambda → lambda → lambda
+prefix `#`:max := lambda.var
+prefix `&`:max := lambda.com
 
-instance lambdar_mul {A : set α} : has_mul (lambdar A) := ⟨lambdar.app⟩
+instance lambda_mul {A : set α} : has_mul (lambda A) := ⟨lambda.app⟩
 
-def lam {A : set α} (n : ℕ) : lambdar A → lambdar A
+def lam {A : set α} (n : ℕ) : lambda A → lambda A
 | #m     := if n = m then &prec.i else &prec.k * #m
-| &h     := &prec.k * lambdar.com h
+| &h     := &prec.k * lambda.com h
 | (l * m) := &prec.s * (lam l) * (lam m)
 notation `Λ`x`,` := lam x 
 
-def expr (A : set α): lambdar A → option α
+def expr (A : set α): lambda A → option α
 | #x := ↓k
-| (@lambdar.com _ _ _ e _) := ↓e
+| (@lambda.com _ _ _ e _) := ↓e
 | (l * m) := (expr l) * (expr m)
 
-lemma lambdar_defined {A : set α} (n : ℕ) : ∀ (e : lambdar A), defined (expr A (Λ n, e))
+lemma lambda_defined {A : set α} (n : ℕ) : ∀ (e : lambda A), defined (expr A (Λ n, e))
 | #e := begin
     cases (eq.decidable n e),
     { simp[lam, expr, if_neg h], exact rfl, },
     { simp[lam, expr, if_pos h], exact rfl, },
   end
-| (@lambdar.com _ _ _ e _) := ktot e
+| (@lambda.com _ _ _ e _) := ktot e
 | (l * m) := begin
     simp [lam, expr], 
-    let a := option.get (lambdar_defined l),
-    let b := option.get (lambdar_defined m),
+    let a := option.get (lambda_defined l),
+    let b := option.get (lambda_defined m),
     have ha : expr A (Λ n, l) = ↓a, { simp },
     have hb : expr A (Λ n, m) = ↓b, { simp },
     rw [ha, hb],
     exact s_defined a b
   end
 
-notation n` →[`A`] `l := option.get (@lambdar_defined _ _ A n l)
+notation n` →[`A`] `l := option.get (@lambda_defined _ _ A n l)
 notation n` →∅ `l := n →[∅] l
 notation n` →u `l := n →[set.univ] l
 
 
-lemma lambdar_pr {A : set α} :
-  ∀ {e : lambdar A} (h : defined (expr A e) = tt), option.get h ∈ ℰ A
+lemma lambda_pr {A : set α} :
+  ∀ {e : lambda A} (h : defined (expr A e) = tt), option.get h ∈ ℰ A
 | #_ _ := prec.k
 | &p _ := p
 | (l * m) h := begin
     have ld : defined (expr A l) = tt, from defined_l h,
     have md : defined (expr A m) = tt, from defined_r h,
-    have lpr : option.get ld ∈ ℰ A, from lambdar_pr ld,
-    have mpr : option.get md ∈ ℰ A, from lambdar_pr md,
+    have lpr : option.get ld ∈ ℰ A, from lambda_pr ld,
+    have mpr : option.get md ∈ ℰ A, from lambda_pr md,
     have e : ↓option.get ld * ↓option.get md = ↓option.get h, { simp [expr], },
     show option.get h ∈ ℰ A, from prec.mul e lpr mpr,
   end
 
-@[simp] lemma lambda_pr0 {A : set α} (n : ℕ) (e : lambdar A) : (n →[A] e) ∈ ℰ A := lambdar_pr _
+@[simp] lemma lambda_pr0 {A : set α} (n : ℕ) (e : lambda A) : (n →[A] e) ∈ ℰ A := lambda_pr _
 
 namespace recursion
 
@@ -127,10 +131,10 @@ def npr : n ∈ (ℰ₀ : set α) := lambda_pr0 _ _
 theorem recursion (f : α) : n ⬝ f ≃ ↓f * (n ⬝ f) :=
 begin
   intros x,
-  have diagonal : ∀ g, ↓d * ↓g * ↓x = ↓g * ↓g * ↓x, { unfold d, simp [lam, expr], },
+  have diagonal : ∀ g, ↓d * ↓g * ↓x = ↓g * ↓g * ↓x, { simp [d, lam, expr], },
   let vf := (0 →u &(pr_in_univ f) * (&(pr_in_univ d) * #0)),  
-  have hv : ↓v * ↓f = ↓vf, { unfold v, simp [lam, expr], },
-  have nf_dvf : ↓n * ↓f = ↓d * ↓vf,  { unfold n, unfold v, simp [lam, expr], },
+  have hv : ↓v * ↓f = ↓vf, { simp [v, lam, expr], },
+  have nf_dvf : ↓n * ↓f = ↓d * ↓vf,  { simp [n, v, lam, expr], },
   calc
     n ⬝ f * ↓x = ↓n * ↓f * ↓x         : rfl
     ...        = ↓d * ↓vf * ↓x        : by { rw nf_dvf, }
@@ -139,16 +143,7 @@ begin
     ...        = ↓f * (↓n * ↓f) * ↓x  : by { rw nf_dvf, }
 end
 
-theorem ntot : tot (n : α) :=
-begin
-  intros f,
-  let vf := (0 →u &(pr_in_univ f) * (&(pr_in_univ d) * #0)),  
-  have hv : ↓v * ↓f = ↓vf, { unfold v, simp [lam, expr], },
-  have nf_dvf : ↓n * ↓f = ↓d * ↓vf,  { unfold n, unfold v, simp [lam, expr], },
-  have dtot : tot (d : α), { intros x, simp [d, lam, expr], refl, },
-  rw nf_dvf,
-  exact (dtot vf),
-end
+theorem ntot : tot (n : α) := by { intros f, simp [n, d, v, lam, expr], refl, }
 
 end recursion
 
@@ -160,10 +155,36 @@ lemma fixpoint_pr : fixpoint ∈ (ℰ₀ : set α) := recursion.npr
 lemma fixpoint_re : fixpoint ∈ (ℛ₀ : set α) := ⟨fixpoint_pr, recursion.ntot⟩
 
 namespace nontotal
+structure and (a b : Prop) : Prop :=
+intro :: (left : a) (right : b)
 
-variables [nontotal α]
+def nontotal_in (A : set α) : Prop := ∃ p q, (↓p * ↓q = none ∧ p ∈ ℰ A ∧ q ∈ ℰ A)
 
-def divergent_u : α := 0 →u &(pr_in_univ nontotal.p) * &(pr_in_univ nontotal.q)
+theorem nontot_iff_diff (A : set α) :
+  (nontotal_in A) ↔ (∃ e, (e ∈ ℰ A ∧ ∀ x, (x ∈ ℰ A → ↓e * ↓x ≠ ↓x))) :=
+begin
+  split,
+  { rintros ⟨p, ⟨q, ⟨epq, ⟨ppr, qpr⟩⟩⟩⟩,
+    let e := (0 →[A] &ppr * &qpr),
+    use e,
+    split,
+    { show e ∈ ℰ A, simp, },
+    { show ∀ x, x ∈ ℰ A → ↓e * ↓x ≠ ↓x, simp[lam, expr, epq], }, },
+  { rintros ⟨e, ⟨epr, h⟩⟩,
+    let f := (0 →[A] &epr * (#0 * #0)),
+    have fpr : f ∈ ℰ A, { simp, },
+    have hf0 : ∀ g, ↓f * ↓g = ↓e * (↓g * ↓g), { intros g, simp[lam, expr], },
+    have hf1 : ↓e * (↓f * ↓f) = ↓f * ↓f, { symmetry, exact hf0 _, },
+    use f, use f,
+    split,
+    { cases ef : ↓f * ↓f,
+      case none : { refl, },
+      case some : v
+      { exfalso,
+        have vpr : v ∈ ℰ A, from prec.mul ef fpr fpr,
+        show false, from h v vpr (by { rw ← ef, exact hf1, }), }, },
+    { exact ⟨fpr, fpr⟩, }, },
+end
 
 
 end nontotal

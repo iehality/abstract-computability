@@ -71,27 +71,27 @@ def subst (x y : α) : α := option.get (s_defined x y)
 notation `𝐤` := const
 notation `𝐬` := subst
 
-@[simp] lemma k_simp (a : α) : ↓k * ↓a = ↓(𝐤 a) := by { unfold const, simp, }
-@[simp] lemma s_simp (a b : α) : ↓s * ↓a * ↓b = ↓(𝐬 a b) := by { unfold subst, simp, refl }
+@[simp] lemma k_simp (a : α) : ↓k * ↓a = ↓(𝐤 a) := by { simp [const], }
+@[simp] lemma s_simp (a b : α) : ↓s * ↓a * ↓b = ↓(𝐬 a b) := by { simp [subst], refl }
 @[simp] lemma k_simp0 (a b : α) : ↓(𝐤 a) * ↓b = ↓a := by { rw ← k_simp, exact k_constant _ _, }
 @[simp] lemma s_simp0 (a b c : α) : ↓(𝐬 a b) * ↓c = (↓a * ↓c) * (↓b * ↓c) := by { rw ← s_simp, exact s_substitution _ _ _, }
 
 def i : α := 𝐬 k k
-@[simp] lemma i_ident (a : α) : ↓i * ↓a = ↓a := by { unfold i, simp, }
+@[simp] lemma i_ident (a : α) : ↓i * ↓a = ↓a := by { simp [i], }
 lemma itot : tot (i : α) := by { intros x, simp, refl, }
 
 def subst' (x : α) : α := option.get (stot x)
 notation `𝐬'` := subst'
 
 class nontotal (α : Type u) [pmagma α] :=
-(p q : α)
-(pq_undefined : p ⬝ q = none)
+(div0 div1 : α)
+(nontot : div0 ⬝ div1 = none)
 
 namespace nontotal
 
-@[simp] lemma nontototal_simp [pmagma α] [nontotal α] : (↓p * ↓q : option α) = none := pq_undefined
+@[simp] lemma nontototal_simp [pmagma α] [nontotal α] : (↓div0 * ↓div1 : option α) = none := nontot
 
-def divergent [nontotal α] : α := 𝐬 (𝐤 nontotal.p) (𝐤 nontotal.q)
+def divergent [nontotal α] : α := 𝐬 (𝐤 div0) (𝐤 div1)
 theorem divergent_udefined [nontotal α] (a : α) : udefined (↓divergent * ↓a) = tt := by { simp[divergent], refl, }
 
 theorem k_ne_s [nontotal α] : (k : α) ≠ s :=
@@ -101,7 +101,7 @@ begin
   { calc
       ↓(i : α) = ↓k * (↓k * ↓i) * (↓k * ↓divergent) * ↓divergent : by { simp, }
       ...      = ↓s * (↓k * ↓i) * (↓k * ↓divergent) * ↓divergent : by { rw e, }
-      ...      = ↓divergent : by { simp, } },
+      ...      = ↓divergent                                      : by { simp, }, },
   have c  : defined (↓(i : α) * ↓k) = tt, { simp, refl, },
   have c0 : defined (↓(i : α) * ↓k) = ff, { rw e0, simp[divergent], },
   show false, from bool_iff_false.mpr c0 c,
@@ -110,5 +110,8 @@ end
 instance [nontotal α] : nontrivial α := ⟨⟨k, s, k_ne_s⟩⟩
 
 end nontotal
+
+class extentional_in (A : set α) [pmagma α]
+(ext : ∀ x y, x ∈ A → y ∈ A → defined (↓x * ↓y))
 
 end pca
