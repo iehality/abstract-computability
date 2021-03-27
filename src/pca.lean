@@ -21,7 +21,7 @@ instance pm_mul [pmagma α] : has_mul (option α) := {mul := @pmagma.mmul α _}
 @[simp] lemma pmagma.none_l [pmagma α] (p : option α) : none * p = none := option.cases_on p rfl (λ _, rfl)
 @[simp] lemma pmagma.none_r [pmagma α] (p : option α) : p * none = none := option.cases_on p rfl (λ _, rfl)
 
-lemma defined_l [pmagma α] {p q : option α} : defined (p * q) → defined p :=
+lemma str_l [pmagma α] {p q : option α} : defined (p * q) → defined p :=
 begin
   contrapose,
   assume (h0 : ¬ defined p),
@@ -30,7 +30,7 @@ begin
   simp,
 end
 
-lemma defined_r [pmagma α] {p q : option α} : defined (p * q) → defined q :=
+lemma str_r [pmagma α] {p q : option α} : defined (p * q) → defined q :=
 begin
   contrapose,
   assume (h0 : ¬ defined q),
@@ -49,6 +49,11 @@ infix ` ≃ `:50 := pmagma.equiv
 @[trans] lemma pmagma.trans [pmagma α] (a b c : option α) (eab : a ≃ b) (ebc : b ≃ c) : a ≃ c :=
 by { intros x, rw (eab x), exact ebc x, }
 
+def total_in (A : set α) [pmagma α] : Prop := ∀ {x y}, x ∈ A → y ∈ A → defined (↓x * ↓y)
+
+def extensional_in (A : set α) [pmagma α] : Prop := 
+∀ {x y}, x ∈ A → y ∈ A → (∀ z, z ∈ A → ↓x * ↓z = ↓y * ↓z) → x = y
+
 /- Partial Combinatory Algebra -/
 class pca (α : Type u) extends pmagma α :=
 (k : α)
@@ -62,26 +67,26 @@ namespace pca
 variables [pca α]
 
 lemma ktot : tot (k : α) :=
-by { intros x, have h : defined (k ⬝ x * x) = tt, { rw k_constant x x, refl, }, exact defined_l h, }
+by { intros x, have h : defined (k ⬝ x * x) = tt, { rw k_constant x x, refl, }, exact str_l h, }
 
-lemma stot : tot (s : α) := λ a, defined_l (s_defined a a)
+lemma stot : tot (s : α) := λ a, str_l (s_defined a a)
 
 def const (x : α) : α := option.get (ktot x)
 def subst (x y : α) : α := option.get (s_defined x y)
+def subst' (x : α) : α := option.get (stot x)
 notation `𝐤` := const
 notation `𝐬` := subst
+notation `𝐬'` := subst'
 
 @[simp] lemma k_simp (a : α) : ↓k * ↓a = ↓(𝐤 a) := by { simp [const], }
 @[simp] lemma s_simp (a b : α) : ↓s * ↓a * ↓b = ↓(𝐬 a b) := by { simp [subst], refl }
 @[simp] lemma k_simp0 (a b : α) : ↓(𝐤 a) * ↓b = ↓a := by { rw ← k_simp, exact k_constant _ _, }
 @[simp] lemma s_simp0 (a b c : α) : ↓(𝐬 a b) * ↓c = (↓a * ↓c) * (↓b * ↓c) := by { rw ← s_simp, exact s_substitution _ _ _, }
+@[simp] lemma s'_simp (a b : α) : ↓(𝐬' a) * ↓b = ↓𝐬 a b := by { simp[subst'], }
 
 def i : α := 𝐬 k k
-@[simp] lemma i_ident (a : α) : ↓i * ↓a = ↓a := by { simp [i], }
+@[simp] lemma i_simp (a : α) : ↓i * ↓a = ↓a := by { simp [i], }
 lemma itot : tot (i : α) := by { intros x, simp, refl, }
-
-def subst' (x : α) : α := option.get (stot x)
-notation `𝐬'` := subst'
 
 class nontotal (α : Type u) [pmagma α] :=
 (div0 div1 : α)
@@ -110,8 +115,5 @@ end
 instance [nontotal α] : nontrivial α := ⟨⟨k, s, k_ne_s⟩⟩
 
 end nontotal
-
-class extentional_in (A : set α) [pmagma α]
-(ext : ∀ x y, x ∈ A → y ∈ A → defined (↓x * ↓y))
 
 end pca
