@@ -1,5 +1,4 @@
 import pca
-import combinator
 
 namespace pca
 
@@ -40,28 +39,28 @@ pr_subset ha (by { simp, })
 lemma recuraive.k (A : set α) : k ∈ ℛ A := ⟨prec.k, ktot⟩
 lemma recuraive.s (A : set α) : s ∈ ℛ A := ⟨prec.s, stot⟩
 
-lemma prec.const {A : set α} {a : α} : a ∈ (ℰ A : set α) → 𝐤 a ∈ (ℰ A : set α) :=
+lemma prec.const {A : set α} {a : α} : a ∈ (ℰ A : set α) → 𝚔 a ∈ (ℰ A : set α) :=
 begin
   assume h : a ∈ ℰ A,
-  have l0 : ↓k * ↓a = ↓𝐤 a, { simp, },
-  show 𝐤 a ∈ ℰ A, from prec.mul l0 prec.k h,
+  have l0 : ↓k * ↓a = ↓𝚔 a, { simp, },
+  show 𝚔 a ∈ ℰ A, from prec.mul l0 prec.k h,
 end
 
 lemma prec.subst' {A : set α} {a : α} :
-  a ∈ ℰ A → 𝐬' a ∈ ℰ A :=
+  a ∈ ℰ A → 𝚜' a ∈ ℰ A :=
 begin
   assume h : a ∈ ℰ A,
-  have l0 : ↓s * ↓a = ↓𝐬' a, { unfold subst', simp, },
-  show 𝐬' a ∈ ℰ A, from prec.mul l0 prec.s h,
+  have l0 : ↓s * ↓a = ↓𝚜' a, { unfold subst', simp, },
+  show 𝚜' a ∈ ℰ A, from prec.mul l0 prec.s h,
 end
 
 lemma prec.subst {A : set α} {a b : α} :
-  a ∈ ℰ A → b ∈ ℰ A → 𝐬 a b ∈ ℰ A :=
+  a ∈ ℰ A → b ∈ ℰ A → 𝚜 a b ∈ ℰ A :=
 begin
   assume (ha : a ∈ ℰ A) (hb : b ∈ ℰ A),
-  have l0 : 𝐬' a ∈ (ℰ A : set α), from prec.subst' ha,
-  have l1 : ↓𝐬' a * ↓b = ↓𝐬 a b, { unfold subst', simp, },
-  show 𝐬 a b ∈ ℰ A, from prec.mul l1 l0 hb,
+  have l0 : 𝚜' a ∈ (ℰ A : set α), from prec.subst' ha,
+  have l1 : ↓𝚜' a * ↓b = ↓𝚜 a b, { unfold subst', simp, },
+  show 𝚜 a b ∈ ℰ A, from prec.mul l1 l0 hb,
 end
 
 @[simp] lemma prec.i {A : set α} : i ∈ ℰ A := prec.subst prec.k prec.k
@@ -143,10 +142,10 @@ begin
   have nf_dvf : ↓n * ↓f = ↓d * ↓vf,  { simp [n, v, lam, expr], },
   calc
     n ⬝ f * ↓x = ↓n * ↓f * ↓x         : rfl
-    ...        = ↓d * ↓vf * ↓x        : by { rw nf_dvf, }
+    ...        = ↓d * ↓vf * ↓x        : by rw nf_dvf
     ...        = ↓vf * ↓vf * ↓x       : diagonal vf
-    ...        = ↓f * (↓d * ↓vf) * ↓x : by { simp [lam, expr], }
-    ...        = ↓f * (↓n * ↓f) * ↓x  : by { rw nf_dvf, }
+    ...        = ↓f * (↓d * ↓vf) * ↓x : by simp [lam, expr]
+    ...        = ↓f * (↓n * ↓f) * ↓x  : by rw nf_dvf
 end
 
 theorem ntot : tot (n : α) := by { intros f, simp [n, d, v, lam, expr], refl, }
@@ -161,8 +160,6 @@ lemma fixpoint_pr : fixpoint ∈ (ℰ₀ : set α) := recursion.npr
 lemma fixpoint_re : fixpoint ∈ (ℛ₀ : set α) := ⟨fixpoint_pr, recursion.ntot⟩
 
 namespace nontotal
-structure and (a b : Prop) : Prop :=
-intro :: (left : a) (right : b)
 
 def nontotal_in (A : set α) : Prop := ∃ p q, (↓p * ↓q = none ∧ p ∈ ℰ A ∧ q ∈ ℰ A)
 
@@ -192,71 +189,35 @@ begin
     { exact ⟨fpr, fpr⟩, }, },
 end
 
-lemma nhbcdkjsvk (P Q : Prop) : ¬(P ∧ Q) → (¬P ∨ ¬Q) := by { exact not_and_distrib.mp}
-
-theorem total_ext [nontotal α] (A : set α) : ¬total_in (ℰ A) ∨ ¬extensional_in (ℰ A) :=
+theorem nontotal_neg_totalin_or_neg_extin [nontotal α] (A : set α) :
+  ¬total_in (ℰ A) ∨ ¬extensional_in (ℰ A) :=
 begin
   apply not_and_distrib.mp,
   rintros ⟨h0 : total_in (ℰ A), h1 : extensional_in (ℰ A)⟩,
-  have e0 : (𝐬' k : α) = 𝐤 i,
+  have e0 : (𝚜' k : α) = 𝚔 i,
   { apply h1,
-    { show 𝐬' k ∈ ℰ A, from prec.subst' prec.k, },
-    { show 𝐤 i ∈ ℰ A, from prec.const prec.i, },
+    { show 𝚜' k ∈ ℰ A, from prec.subst' prec.k, },
+    { show 𝚔 i ∈ ℰ A, from prec.const prec.i, },
     { intros x xpr,
       simp,
       apply h1,
-      { show 𝐬 k x ∈ ℰ A, from prec.subst prec.k xpr, },
+      { show 𝚜 k x ∈ ℰ A, from prec.subst prec.k xpr, },
       { show i ∈ ℰ A, from prec.i, },
       intros y ypr,
       calc
-        ↓𝐬 k x * ↓y = ↓𝐤 y * ↓option.get (h0 xpr ypr) : by simp
+        ↓𝚜 k x * ↓y = ↓𝚔 y * ↓option.get (h0 xpr ypr) : by simp
         ...         = ↓i * ↓y : by simp only [k_simp0, i_simp], }, },
-  have e1 : ↓(𝐤 div1 : α) * (↓div0 * ↓div1) = ↓div1,
+  have e1 : ↓(𝚔 div1 : α) * (↓div0 * ↓div1) = ↓div1,
   { calc
-    ↓(𝐤 div1 : α) * (↓div0 * ↓div1) = ↓𝐬' k * ↓div0 * ↓div1 : by simp
-    ...                             = ↓𝐤 i * ↓div0 * ↓div1  : by rw e0
-    ...                             = ↓div1                 : by simp, },
-  have hd : defined (↓(𝐤 div1 : α) * (↓div0 * ↓div1)) = tt, { rw e1, refl, },
+      ↓(𝚔 div1 : α) * (↓div0 * ↓div1) = ↓𝚜' k * ↓div0 * ↓div1 : by simp
+      ...                             = ↓𝚔 i * ↓div0 * ↓div1  : by rw e0
+      ...                             = ↓div1                 : by simp, },
+  have hd : defined (↓(𝚔 div1 : α) * (↓div0 * ↓div1)) = tt, { rw e1, refl, },
   have c0 : defined (↓div0 * ↓div1 : option α) = tt, from str_r hd,
   have c1 : defined (↓div0 * ↓div1 : option α) = ff, simp,
   show false, from bool_iff_false.mpr c1 c0
 end
 
 end nontotal
-
-namespace reduciability
-
-def reducible (A : set α) (f g : α) : Prop := ∃ e : α, e ∈ ℰ A ∧ ↓e * ↓g = ↓f 
-def T_reducible (f g : α) : Prop := reducible ∅ f g
-infix ` ≤_T `:80 := T_reducible
-infix ` ≡_T `:80 := λ f g, f ≤_T g ∧ g ≤_T f
-
-@[refl] lemma T_reducible.refl (a : α) : a ≤_T a :=
-by { use i, split, exact prec.i, simp, }
-
-@[trans] lemma T_reducible.trans (a b c : α) (hab : a ≤_T b) (hbc : b ≤_T c) : a ≤_T c :=
-begin
-  rcases hab with ⟨e_ab, ⟨e_ab_pr, heab⟩⟩,
-  rcases hbc with ⟨e_bc, ⟨e_bc_pr, hebc⟩⟩,
-  let e_ac := (0 →∅ &e_ab_pr * (&e_bc_pr * #0)),
-  use e_ac,
-  split,
-  { show e_ac ∈ ℰ₀, simp, },
-  { show ↓e_ac * ↓c = ↓a, simp [lam, expr, heab, hebc], },
-end
-
-end reduciability
-
-namespace jump
-/-
-def jump_pred (A : set α) (j : α) : Prop := 
-(∀ x, x ∈ ℰ A → ↓j * ↓x = ↓(if defined (↓x * ↓x) then combinator.top else combinator.bot))
-theorem jhjhj (A : set α) (j : α) (hj : jump_pred A j) : j ∉ ℰ A :=
-begin
-  assume h : j ∈ ℰ A,
-  let 
-end 
--/
-end jump
 
 end pca

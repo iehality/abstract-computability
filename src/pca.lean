@@ -74,17 +74,17 @@ lemma stot : tot (s : α) := λ a, str_l (s_defined a a)
 def const (x : α) : α := option.get (ktot x)
 def subst (x y : α) : α := option.get (s_defined x y)
 def subst' (x : α) : α := option.get (stot x)
-notation `𝐤` := const
-notation `𝐬` := subst
-notation `𝐬'` := subst'
+notation `𝚔` := const
+notation `𝚜` := subst
+notation `𝚜'` := subst'
 
-@[simp] lemma k_simp (a : α) : ↓k * ↓a = ↓(𝐤 a) := by { simp [const], }
-@[simp] lemma s_simp (a b : α) : ↓s * ↓a * ↓b = ↓(𝐬 a b) := by { simp [subst], refl }
-@[simp] lemma k_simp0 (a b : α) : ↓(𝐤 a) * ↓b = ↓a := by { rw ← k_simp, exact k_constant _ _, }
-@[simp] lemma s_simp0 (a b c : α) : ↓(𝐬 a b) * ↓c = (↓a * ↓c) * (↓b * ↓c) := by { rw ← s_simp, exact s_substitution _ _ _, }
-@[simp] lemma s'_simp (a b : α) : ↓(𝐬' a) * ↓b = ↓𝐬 a b := by { simp[subst'], }
+@[simp] lemma k_simp (a : α) : ↓k * ↓a = ↓(𝚔 a) := by { simp [const], }
+@[simp] lemma s_simp (a b : α) : ↓s * ↓a * ↓b = ↓(𝚜 a b) := by { simp [subst], refl }
+@[simp] lemma k_simp0 (a b : α) : ↓(𝚔 a) * ↓b = ↓a := by { rw ← k_simp, exact k_constant _ _, }
+@[simp] lemma s_simp0 (a b c : α) : ↓(𝚜 a b) * ↓c = (↓a * ↓c) * (↓b * ↓c) := by { rw ← s_simp, exact s_substitution _ _ _, }
+@[simp] lemma s'_simp (a b : α) : ↓(𝚜' a) * ↓b = ↓𝚜 a b := by { simp[subst'], }
 
-def i : α := 𝐬 k k
+def i : α := 𝚜 k k
 @[simp] lemma i_simp (a : α) : ↓i * ↓a = ↓a := by { simp [i], }
 lemma itot : tot (i : α) := by { intros x, simp, refl, }
 
@@ -96,7 +96,7 @@ namespace nontotal
 
 @[simp] lemma nontototal_simp [pmagma α] [nontotal α] : (↓div0 * ↓div1 : option α) = none := nontot
 
-def divergent [nontotal α] : α := 𝐬 (𝐤 div0) (𝐤 div1)
+def divergent [nontotal α] : α := 𝚜 (𝚔 div0) (𝚔 div1)
 theorem divergent_udefined [nontotal α] (a : α) : udefined (↓divergent * ↓a) = tt := by { simp[divergent], refl, }
 
 theorem k_ne_s [nontotal α] : (k : α) ≠ s :=
@@ -104,9 +104,9 @@ begin
   assume e : k = s,
   have e0 : ↓(i : α) = ↓divergent,
   { calc
-      ↓(i : α) = ↓k * (↓k * ↓i) * (↓k * ↓divergent) * ↓divergent : by { simp, }
-      ...      = ↓s * (↓k * ↓i) * (↓k * ↓divergent) * ↓divergent : by { rw e, }
-      ...      = ↓divergent                                      : by { simp, }, },
+      ↓(i : α) = ↓k * (↓k * ↓i) * (↓k * ↓divergent) * ↓divergent : by simp
+      ...      = ↓s * (↓k * ↓i) * (↓k * ↓divergent) * ↓divergent : by rw e
+      ...      = ↓divergent                                      : by simp, },
   have c  : defined (↓(i : α) * ↓k) = tt, { simp, refl, },
   have c0 : defined (↓(i : α) * ↓k) = ff, { rw e0, simp[divergent], },
   show false, from bool_iff_false.mpr c0 c,

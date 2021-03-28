@@ -1,33 +1,28 @@
 import pca
+import re
 
 namespace pca
 
 universe variable u
 variables {α : Type u}
+variables [pca α]
 
-namespace combinator
+def pair : α := 0 →∅ Λ 1, (Λ 2, (#2 * #0 * #1))
+notation `⟪`a`, `b`⟫` := 𝚜 (𝚜 i (𝚔 a)) (𝚔 b)
+def π₀ : α := 0 →∅ #0 * &prec.k
+def π₁ : α := 0 →∅ #0 * (&prec.k * &prec.i)
 
-def pair [pca α] : α := 0 ↦ Λ 1, (Λ 2, (#2 * #0 * #1))
-notation `⟪`a`, `b`⟫` := 0 ↦ #0 * (&a) * &b
-def π₀ [pca α] : α := 0 ↦ #0 * &k
-def π₁ [pca α] : α := 0 ↦ #0 * (&k * &i)
+@[simp] lemma pair_e [pca α] (a b : α) : ↓pair * ↓a * ↓b = ↓⟪a, b⟫ :=
+by simp [pair, lam, expr, if_neg (show 2 ≠ 0, from dec_trivial), if_neg (show 2 ≠ 1, from dec_trivial)]
 
-lemma pair_h [pca α] (a b : α) : ↓pair * ↓a * ↓b = ↓⟪a, b⟫ :=
-begin
-  calc
-    ↓pair * ↓a * ↓b = expr (Λ 0, (Λ 1, (Λ 2, (#2 * #0 * #1)))) * ↓a * ↓b
-      : by { unfold pair, simp, }
-    ...             = expr (Λ 0, (#0 * &a * &b))
-      : by {simp [lam, pca.expr, if_neg (show 2 ≠ 0, from dec_trivial), if_neg (show 2 ≠ 1, from dec_trivial)], }
-    ...             = ↓⟪a, b⟫
-      : by { simp, },
-end
+@[simp] lemma pair_pi0 [pca α] (a b : α) : ↓π₀ * ↓⟪a, b⟫ = ↓a := by simp [π₀, lam, expr]
+@[simp] lemma pair_pi1 [pca α] (a b : α) : ↓π₁ * ↓⟪a, b⟫ = ↓b := by simp [π₁, lam, expr]
 
-lemma pair_pi0 [pca α] (a b : α) : ↓π₀ * ↓⟪a, b⟫ = ↓a := by { unfold π₀, simp [lam, pca.expr], }
-lemma pair_pi1 [pca α] (a b : α) : ↓π₁ * ↓⟪a, b⟫ = ↓b := by { unfold π₁, simp [lam, pca.expr], }
+def top [pca α] : α := 0 →∅ Λ 1, #0
+def bot [pca α] : α := 0 →∅ Λ 1, #1
 
-def top [pca α] : α := 0 ↦ Λ 1, (#0)
-def bot [pca α] : α := 0 ↦ Λ 1, (#1)
+notation `𝚃` := top
+notation `𝙵` := bot
 
-end combinator
+
 end pca
