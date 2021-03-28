@@ -21,8 +21,10 @@ notation `ℛ₀` := recursive ∅
 
 @[simp] lemma pr_in_univ (a : α) : a ∈ ℳ (@set.univ α) := submodel.rel (by simp)
 
-lemma pr_subset {A B : set α} {x : α} (hx : x ∈ ℳ A) (h : A ⊆ B) : x ∈ ℳ B :=
+lemma submodel_sbseq {A B : set α} (h : A ⊆ B) : ℳ A ⊆ ℳ B :=
 begin
+  intros x,
+  assume hx : x ∈ ℳ A,
   induction hx,
   case submodel.rel : a ha
   { exact submodel.rel (h ha),},
@@ -35,7 +37,7 @@ begin
 end
 
 lemma pr0_subset {A : set α} {a : α} (ha : a ∈ (ℳ₀ : set α)) : a ∈ ℳ A :=
-pr_subset ha (by { simp, })
+submodel_sbseq (by { simp, }) ha
 
 lemma recuraive.k (A : set α) : k ∈ ℛ A := ⟨submodel.k, ktot⟩
 lemma recuraive.s (A : set α) : s ∈ ℛ A := ⟨submodel.s, stot⟩
@@ -161,6 +163,15 @@ lemma fixpoint_pr : fixpoint ∈ (ℳ₀ : set α) := recursion.npr
 lemma fixpoint_re : fixpoint ∈ (ℛ₀ : set α) := ⟨fixpoint_pr, recursion.ntot⟩
 
 namespace nontotal
+
+theorem submodel_infinite [nontotal α] (A : set α) : (ℳ A).infinite :=
+begin
+  rintros ⟨⟨M, m⟩, h : ∀ x : ℳ A, x ∈ M⟩,
+  let M' := {x | ∃ y : α, y ∈ ℳ A ∧ ↓k * ↓y = ↓x},
+  have e : M' ⊆ ℳ A,
+  { rintros x ⟨y, ⟨hy, exy⟩⟩, show x ∈ ℳ A, from submodel.mul exy submodel.k hy, },
+  sorry
+end
 
 def nontotal_in (A : set α) : Prop := ∃ p q, (↓p * ↓q = none ∧ p ∈ ℳ A ∧ q ∈ ℳ A)
 
