@@ -16,13 +16,13 @@ infix ` ≤ₘ `:80 := m_reducible
 infix ` ≡ₘ `:80 := λ f g, f ≤ₘ g ∧ g ≤ₘ f
 infix ` ≤₁ `:80 := i_reducible
 infix ` ≡₁ `:80 := λ f g, f ≤₁ g ∧ g ≤₁ f
-def T_reducible (f g : α) : Prop := ∃ e : α, e ∈ (ℰ₀ : set α) ∧ ↓e * ↓g = ↓f
+def T_reducible (f g : α) : Prop := ∃ e : α, e ∈ (ℳ₀ : set α) ∧ ↓e * ↓g = ↓f
 infix ` ≤ₜ `:80 := T_reducible
 infix ` <ₜ `:80 := λ f g, f ≤ₜ g ∧ ¬g ≤ₜ f
 infix ` ≡ₜ `:80 := λ f g, f ≤ₜ g ∧ g ≤ₜ f
 
 @[refl] lemma T_reducible.refl (a : α) : a ≤ₜ a :=
-by { use i, split, exact prec.i, simp, }
+by { use i, split, exact submodel.i, simp, }
 
 @[trans] lemma T_reducible.trans (a b c : α) (hab : a ≤ₜ b) (hbc : b ≤ₜ c) : a ≤ₜ c :=
 begin
@@ -31,7 +31,7 @@ begin
   let e_ac := (0 →∅ &e_ab_pr * (&e_bc_pr * #0)),
   use e_ac,
   split,
-  { show e_ac ∈ ℰ₀, simp, },
+  { show e_ac ∈ ℳ₀, simp, },
   { show ↓e_ac * ↓c = ↓a, simp [lam, expr, heab, hebc], },
 end
 

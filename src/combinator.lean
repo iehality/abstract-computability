@@ -9,8 +9,8 @@ variables [pca α]
 
 def pair : α := 0 →∅ Λ 1, (Λ 2, (#2 * #0 * #1))
 notation `⟪`a`, `b`⟫` := 𝚜 (𝚜 i (𝚔 a)) (𝚔 b)
-def π₀ : α := 0 →∅ #0 * &prec.k
-def π₁ : α := 0 →∅ #0 * (&prec.k * &prec.i)
+def π₀ : α := 0 →∅ #0 * &submodel.k
+def π₁ : α := 0 →∅ #0 * (&submodel.k * &submodel.i)
 
 @[simp] lemma pair_e [pca α] (a b : α) : ↓pair * ↓a * ↓b = ↓⟪a, b⟫ :=
 by simp [pair, lam, expr, if_neg (show 2 ≠ 0, from dec_trivial), if_neg (show 2 ≠ 1, from dec_trivial)]

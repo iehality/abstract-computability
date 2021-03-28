@@ -6,69 +6,70 @@ universe variable u
 variables {α : Type u}
 variables [pca α]
 
-inductive prec (A : set α) : set α
-| rel {a} : a ∈ A → prec a
-| k : prec k
-| s : prec s
-| mul {a b c} : (↓a * ↓b) = ↓c → prec a → prec b → prec c
-notation `ℰ` := prec
-notation `ℰ₀` := prec ∅
+/- Minimum submodel of pca containing A -/
+inductive submodel (A : set α) : set α
+| rel {a} : a ∈ A → submodel a
+| k : submodel k
+| s : submodel s
+| mul {a b c} : (↓a * ↓b) = ↓c → submodel a → submodel b → submodel c
+notation `ℳ` := submodel
+notation `ℳ₀` := submodel ∅
 
-def recursive (A : set α) : set α := {x | x ∈ prec A ∧ tot x}
+def recursive (A : set α) : set α := {x | x ∈ submodel A ∧ tot x}
 notation `ℛ` := recursive
 notation `ℛ₀` := recursive ∅
 
-@[simp] lemma pr_in_univ (a : α) : a ∈ ℰ (@set.univ α) := prec.rel (by simp)
+@[simp] lemma pr_in_univ (a : α) : a ∈ ℳ (@set.univ α) := submodel.rel (by simp)
 
-lemma pr_subset {A B : set α} {x : α} (hx : x ∈ ℰ A) (h : A ⊆ B) : x ∈ ℰ B :=
+lemma pr_subset {A B : set α} {x : α} (hx : x ∈ ℳ A) (h : A ⊆ B) : x ∈ ℳ B :=
 begin
   induction hx,
-  case prec.rel : a ha
-  { exact prec.rel (h ha),},
-  case prec.k :
-  { exact prec.k, },
-  case prec.s :
-  { exact prec.s, },
-  case prec.mul : _ _ _ e _ _ iha ihb
-  { exact prec.mul e iha ihb, },
+  case submodel.rel : a ha
+  { exact submodel.rel (h ha),},
+  case submodel.k :
+  { exact submodel.k, },
+  case submodel.s :
+  { exact submodel.s, },
+  case submodel.mul : _ _ _ e _ _ iha ihb
+  { exact submodel.mul e iha ihb, },
 end
 
-lemma pr0_subset {A : set α} {a : α} (ha : a ∈ (ℰ₀ : set α)) : a ∈ ℰ A :=
+lemma pr0_subset {A : set α} {a : α} (ha : a ∈ (ℳ₀ : set α)) : a ∈ ℳ A :=
 pr_subset ha (by { simp, })
 
-lemma recuraive.k (A : set α) : k ∈ ℛ A := ⟨prec.k, ktot⟩
-lemma recuraive.s (A : set α) : s ∈ ℛ A := ⟨prec.s, stot⟩
+lemma recuraive.k (A : set α) : k ∈ ℛ A := ⟨submodel.k, ktot⟩
+lemma recuraive.s (A : set α) : s ∈ ℛ A := ⟨submodel.s, stot⟩
 
-lemma prec.const {A : set α} {a : α} : a ∈ (ℰ A : set α) → 𝚔 a ∈ (ℰ A : set α) :=
+lemma submodel.const {A : set α} {a : α} : a ∈ (ℳ A : set α) → 𝚔 a ∈ (ℳ A : set α) :=
 begin
-  assume h : a ∈ ℰ A,
+  assume h : a ∈ ℳ A,
   have l0 : ↓k * ↓a = ↓𝚔 a, { simp, },
-  show 𝚔 a ∈ ℰ A, from prec.mul l0 prec.k h,
+  show 𝚔 a ∈ ℳ A, from submodel.mul l0 submodel.k h,
 end
 
-lemma prec.subst' {A : set α} {a : α} :
-  a ∈ ℰ A → 𝚜' a ∈ ℰ A :=
+lemma submodel.subst' {A : set α} {a : α} :
+  a ∈ ℳ A → 𝚜' a ∈ ℳ A :=
 begin
-  assume h : a ∈ ℰ A,
+  assume h : a ∈ ℳ A,
   have l0 : ↓s * ↓a = ↓𝚜' a, { unfold subst', simp, },
-  show 𝚜' a ∈ ℰ A, from prec.mul l0 prec.s h,
+  show 𝚜' a ∈ ℳ A, from submodel.mul l0 submodel.s h,
 end
 
-lemma prec.subst {A : set α} {a b : α} :
-  a ∈ ℰ A → b ∈ ℰ A → 𝚜 a b ∈ ℰ A :=
+lemma submodel.subst {A : set α} {a b : α} :
+  a ∈ ℳ A → b ∈ ℳ A → 𝚜 a b ∈ ℳ A :=
 begin
-  assume (ha : a ∈ ℰ A) (hb : b ∈ ℰ A),
-  have l0 : 𝚜' a ∈ (ℰ A : set α), from prec.subst' ha,
+  assume (ha : a ∈ ℳ A) (hb : b ∈ ℳ A),
+  have l0 : 𝚜' a ∈ (ℳ A : set α), from submodel.subst' ha,
   have l1 : ↓𝚜' a * ↓b = ↓𝚜 a b, { unfold subst', simp, },
-  show 𝚜 a b ∈ ℰ A, from prec.mul l1 l0 hb,
+  show 𝚜 a b ∈ ℳ A, from submodel.mul l1 l0 hb,
 end
 
-@[simp] lemma prec.i {A : set α} : i ∈ ℰ A := prec.subst prec.k prec.k
-@[simp] lemma recursive.i (A : set α) : i ∈ (ℛ A : set α) := ⟨prec.i, itot⟩
+@[simp] lemma submodel.i {A : set α} : i ∈ ℳ A := submodel.subst submodel.k submodel.k
+@[simp] lemma recursive.i (A : set α) : i ∈ (ℛ A : set α) := ⟨submodel.i, itot⟩
 
 inductive lambda (A : set α) 
 | var : ℕ → lambda
-| com {a : α} : a ∈ ℰ A → lambda
+| com {a : α} : a ∈ ℳ A → lambda
 | app : lambda → lambda → lambda
 prefix `#`:max := lambda.var
 prefix `&`:max := lambda.com
@@ -76,9 +77,9 @@ prefix `&`:max := lambda.com
 instance lambda_mul {A : set α} : has_mul (lambda A) := ⟨lambda.app⟩
 
 def lam {A : set α} (n : ℕ) : lambda A → lambda A
-| #m     := if n = m then &prec.i else &prec.k * #m
-| &h     := &prec.k * lambda.com h
-| (l * m) := &prec.s * (lam l) * (lam m)
+| #m     := if n = m then &submodel.i else &submodel.k * #m
+| &h     := &submodel.k * lambda.com h
+| (l * m) := &submodel.s * (lam l) * (lam m)
 notation `Λ`x`,` := lam x 
 
 def expr (A : set α): lambda A → option α
@@ -108,30 +109,30 @@ notation n` →∅ `l := n →[∅] l
 notation n` →u `l := n →[set.univ] l
 
 lemma lambda_pr {A : set α} :
-  ∀ {e : lambda A} (h : defined (expr A e) = tt), option.get h ∈ ℰ A
-| #_ _ := prec.k
+  ∀ {e : lambda A} (h : defined (expr A e) = tt), option.get h ∈ ℳ A
+| #_ _ := submodel.k
 | &p _ := p
 | (l * m) h := begin
     have ld : defined (expr A l) = tt, from str_l h,
     have md : defined (expr A m) = tt, from str_r h,
-    have lpr : option.get ld ∈ ℰ A, from lambda_pr ld,
-    have mpr : option.get md ∈ ℰ A, from lambda_pr md,
+    have lpr : option.get ld ∈ ℳ A, from lambda_pr ld,
+    have mpr : option.get md ∈ ℳ A, from lambda_pr md,
     have e : ↓option.get ld * ↓option.get md = ↓option.get h, { simp [expr], },
-    show option.get h ∈ ℰ A, from prec.mul e lpr mpr,
+    show option.get h ∈ ℳ A, from submodel.mul e lpr mpr,
   end
 
-@[simp] lemma lambda_pr0 {A : set α} (n : ℕ) (e : lambda A) : (n →[A] e) ∈ ℰ A := lambda_pr _
+@[simp] lemma lambda_pr0 {A : set α} (n : ℕ) (e : lambda A) : (n →[A] e) ∈ ℳ A := lambda_pr _
 
 namespace recursion
 
 def d : α := 0 →∅ (Λ 1, (#0 * #0 * #1))
-def dpr : d ∈ (ℰ₀ : set α) := lambda_pr0 _ _
+def dpr : d ∈ (ℳ₀ : set α) := lambda_pr0 _ _
 
 def v: α := 0 →∅ (Λ 1, (#0 * (&dpr * #1)))
-def vpr : v ∈ (ℰ₀ : set α) := lambda_pr0 _ _
+def vpr : v ∈ (ℳ₀ : set α) := lambda_pr0 _ _
 
 def n : α := 0 →∅ (&dpr * (&vpr * #0))
-def npr : n ∈ (ℰ₀ : set α) := lambda_pr0 _ _
+def npr : n ∈ (ℳ₀ : set α) := lambda_pr0 _ _
 
 theorem recursion (f : α) : n ⬝ f ≃ ↓f * (n ⬝ f) :=
 begin
@@ -156,26 +157,26 @@ def fixpoint : α := recursion.n
 def recursion  (f x : α) : ↓fixpoint * ↓f * ↓x = f * (↓fixpoint * ↓f) * ↓x := recursion.recursion f x
 def fixpoint_of (f : α) : α := option.get (recursion.ntot f)
 
-lemma fixpoint_pr : fixpoint ∈ (ℰ₀ : set α) := recursion.npr
+lemma fixpoint_pr : fixpoint ∈ (ℳ₀ : set α) := recursion.npr
 lemma fixpoint_re : fixpoint ∈ (ℛ₀ : set α) := ⟨fixpoint_pr, recursion.ntot⟩
 
 namespace nontotal
 
-def nontotal_in (A : set α) : Prop := ∃ p q, (↓p * ↓q = none ∧ p ∈ ℰ A ∧ q ∈ ℰ A)
+def nontotal_in (A : set α) : Prop := ∃ p q, (↓p * ↓q = none ∧ p ∈ ℳ A ∧ q ∈ ℳ A)
 
 theorem nontot_iff_diff (A : set α) :
-  (nontotal_in A) ↔ (∃ e, (e ∈ ℰ A ∧ ∀ x, (x ∈ ℰ A → ↓e * ↓x ≠ ↓x))) :=
+  (nontotal_in A) ↔ (∃ e, (e ∈ ℳ A ∧ ∀ x, (x ∈ ℳ A → ↓e * ↓x ≠ ↓x))) :=
 begin
   split,
   { rintros ⟨p, ⟨q, ⟨epq, ⟨ppr, qpr⟩⟩⟩⟩,
     let e := (0 →[A] &ppr * &qpr),
     use e,
     split,
-    { show e ∈ ℰ A, simp, },
-    { show ∀ x, x ∈ ℰ A → ↓e * ↓x ≠ ↓x, simp[lam, expr, epq], }, },
+    { show e ∈ ℳ A, simp, },
+    { show ∀ x, x ∈ ℳ A → ↓e * ↓x ≠ ↓x, simp[lam, expr, epq], }, },
   { rintros ⟨e, ⟨epr, h⟩⟩,
     let f := (0 →[A] &epr * (#0 * #0)),
-    have fpr : f ∈ ℰ A, { simp, },
+    have fpr : f ∈ ℳ A, { simp, },
     have hf0 : ∀ g, ↓f * ↓g = ↓e * (↓g * ↓g), { intros g, simp[lam, expr], },
     have hf1 : ↓e * (↓f * ↓f) = ↓f * ↓f, { symmetry, exact hf0 _, },
     use f, use f,
@@ -184,25 +185,25 @@ begin
       case none : { refl, },
       case some : v
       { exfalso,
-        have vpr : v ∈ ℰ A, from prec.mul ef fpr fpr,
+        have vpr : v ∈ ℳ A, from submodel.mul ef fpr fpr,
         show false, from h v vpr (by { rw ← ef, exact hf1, }), }, },
     { exact ⟨fpr, fpr⟩, }, },
 end
 
 theorem nontotal_neg_totalin_or_neg_extin [nontotal α] (A : set α) :
-  ¬total_in (ℰ A) ∨ ¬extensional_in (ℰ A) :=
+  ¬total_in (ℳ A) ∨ ¬extensional_in (ℳ A) :=
 begin
   apply not_and_distrib.mp,
-  rintros ⟨h0 : total_in (ℰ A), h1 : extensional_in (ℰ A)⟩,
+  rintros ⟨h0 : total_in (ℳ A), h1 : extensional_in (ℳ A)⟩,
   have e0 : (𝚜' k : α) = 𝚔 i,
   { apply h1,
-    { show 𝚜' k ∈ ℰ A, from prec.subst' prec.k, },
-    { show 𝚔 i ∈ ℰ A, from prec.const prec.i, },
+    { show 𝚜' k ∈ ℳ A, from submodel.subst' submodel.k, },
+    { show 𝚔 i ∈ ℳ A, from submodel.const submodel.i, },
     { intros x xpr,
       simp,
       apply h1,
-      { show 𝚜 k x ∈ ℰ A, from prec.subst prec.k xpr, },
-      { show i ∈ ℰ A, from prec.i, },
+      { show 𝚜 k x ∈ ℳ A, from submodel.subst submodel.k xpr, },
+      { show i ∈ ℳ A, from submodel.i, },
       intros y ypr,
       calc
         ↓𝚜 k x * ↓y = ↓𝚔 y * ↓option.get (h0 xpr ypr) : by simp
